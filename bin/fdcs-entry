@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# We cant just use $SUDO_USER here because that doesn't return the correct username
+# if multiple names share the same uid.
+
+USER="$(who am i | awk '{print $1}')"
+
+if [[ -z "$@" ]]; then
+        # no arguments, start bash
+        docker exec -ti -u ${SUDO_UID}:${SUDO_GID} fdcs_${USER} /bin/bash
+else
+        # it is important not to use -t here or things like ssh push wont work
+        # also make sure not to have requestTTY true in your .ssh/config if you have problems
+        # with ssh commands
+        docker exec -i -u ${SUDO_UID}:${SUDO_GID} fdcs_${USER} /bin/sh "$@"
+fi

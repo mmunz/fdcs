@@ -1,0 +1,143 @@
+#!bin/bash
+
+### check for availability of required tools
+
+required="mkdir id getent basename logger grep docker"
+for r in $required; do
+	if [ -z "$(which $r)" ]; then
+		logger -i -p auth.error -t $SCRIPTNAME "missing program $r, exiting now."
+		exit 2
+	fi
+done
+
+### Configuration. Change to fit your environment
+
+# Docker image to be used
+DOCKER_IMAGE="mmunz/docker-customer-chroot"
+
+# Directory where users webs/ and mail/ folders are stored
+FROXLOR_CUSTOMER_DIR="/var/customers/"
+
+# Persistant home directory for the ssh user, will be created if it does not exist
+USER_SSH_HOME="${FROXLOR_CUSTOMER_DIR}/home/${PAM_USER}/"
+
+# Max Number of cores the container can use
+CONTAINER_MAX_CPU="1"
+
+# Max RAM allowed to use by the container (-m option in docker)
+CONTAINER_MAX_MEMORY="512m"
+
+# Ulimits options for the container
+CONTAINER_ULIMIT="--ulimit nproc=128:256"
+
+
+### autocalculated values, you should not need to change these
+
+# name of this script
+SCRIPTNAME=$(basename "$0")
+
+# effektive User UID and GID
+EFFECTIVE_UID="$(id -u $PAM_USER)"
+EFFECTIVE_GID="$(id -g $PAM_USER)"
+USER_REAL="$(id -u -n $PAM_USER)"
+# Users home directory (from the froxlor ftp_users table)
+USER_HOME="$(getent passwd $PAM_USER | cut -f6 -d:)"
+# Users shell (from the froxlor ftp_users table)
+USER_SHELL="$(getent passwd ${PAM_USER} | cut -d: -f7)"
+# A sudoers file must ve created to alow the user to docker exec into the container
+# memory cgroup support
+CGROUP_MEMORY=0
+test -d /sys/fs/cgroup/memory/ && CGROUP_MEMORY=1
+# memory cgroup support
+CGROUP_CPU=0
+test -e /sys/fs/cgroup/cpu && CGROUP_CPU=1
+
+if [ -z "$EFFECTIVE_UID" ] || [ -z "$EFFECTIVE_GID" ] || [ -z "$USER_REAL" ] || [ -z "$USER_HOME" ]; then
+	logger -i -p auth.error -t $SCRIPTNAME "missing required variables, not starting docker container."
+	exit
+fi
+
+
+if [ "${USER_SHELL}" != "/usr/local/fdcs/bin/fdcs" ]; then
+	# users shell is not fdcs, do nothing
+	logger -i -p auth.error -t $SCRIPTNAME "Users shell is not /usr/local/fdcs/bin/fdcs, not starting docker container."
+	exit
+fi
+
+
+if [ -z "`echo $USER_HOME | grep $FROXLOR_CUSTOMER_DIR`" ]; then
+	# no relative froxlor dir found -> this is no froxlor user, exit now
+	logger -i -p auth.error -t $SCRIPTNAME "Users is not a froxlor user, not starting docker container."
+	exit
+fi
+
+user_has_session() {
+	# does the user still have open ssh sessions?
+        users=$(who -u -s -q |head -n 1)
+        has_session="0"
+        for user in $users; do
+                if [ "$user" = "$PAM_USER" ]; then
+                        logger -i -p auth.notice -t $SCRIPTNAME "User $PAM_USER has still open sessions, keep docker container."
+                        has_session="1"
+                fi
+        done
+	echo $has_session
+}
+
+
+if [ -z "$PAM_TYPE" -o "$PAM_TYPE" = "open_session" ]; then
+
+	# create home directory for the user if necessary
+        test -d $USER_SSH_HOME || {
+		mkdir -p /var/customers/home
+                cp -r /etc/skel $USER_SSH_HOME
+                chown -R ${EFFECTIVE_UID}:${EFFECTIVE_GID} $USER_SSH_HOME
+                chmod 700 $USER_SSH_HOME
+        }
+
+	# Options for limiting the user
+	$LIMIT_OPTIONS="${CONTAINER_ULIMIT}"
+	if [ "${CGROUP_MEMORY}" = "1" ]; then
+		LIMIT_OPTIONS=" -m ${CONTAINER_MAX_MEMORY} --memory-swap ${CONTAINER_MAX_MEMORY} --kernel-memory ${CONTAINER_MAX_MEMORY} --oom-kill-disable"
+	else
+		logger -i -p auth.warning -t $SCRIPTNAME "No memory cgroup support, not limiting the containers memory usage!"
+	fi
+
+
+	if [ "${CGROUP_CPU}" = "1" ]; then
+		LIMIT_OPTIONS="${LIMIT_OPTIONS} --cpus=${CONTAINER_MAX_CPU}"
+	else
+		logger -i -p auth.warning -t $SCRIPTNAME "No cpu cgroup support, not limiting the containers cpu usage!"
+	fi
+
+	# Start docker container for this user in detached mode.
+	# Socat is started inside the container to forward 127.0.0.1:3306 to the bind-mounted mysql socket.
+	docker inspect fdcs_${PAM_USER} &> /dev/null || docker run \
+        -v /var/lib/extrausers/passwd:/etc/passwd:ro \
+        -v /var/lib/extrausers/group:/etc/group:ro \
+        -v /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
+        -v ${USER_HOME}:${USER_HOME} \
+        -v ${USER_SSH_HOME}/:/home/${PAM_USER} \
+	--tmpfs /tmp \
+	-e HOME=/home/${PAM_USER} \
+	-h $(hostname) \
+	-e TERM=xterm-color \
+        --rm --cap-drop=all --security-opt=no-new-privileges --read-only ${LIMIT_OPTIONS} -d -u ${EFFECTIVE_UID}:${EFFECTIVE_GID} --name fdcs_${PAM_USER} ${DOCKER_IMAGE} socat TCP-LISTEN:3306,fork,bind=localhost unix-connect:/var/run/mysqld/mysqld.sock &> /dev/null
+
+elif [ "$PAM_TYPE" = "close_session" ]; then
+        logger -i -p auth.notice -t $SCRIPTNAME "${PAM_USER} is logging out."
+        if [ "$(user_has_session)" = "0" ]; then
+                # last user session, destroy docker container
+                logger -i -p auth.notice -t $SCRIPTNAME "Last user session ended, killing docker container in 10s."
+		sleep 10 && {
+		        if [ "$(user_has_session)" = "0" ]; then
+		                logger -i -p auth.notice -t $SCRIPTNAME "Killed docker container fdcs_${PAM_USER}"
+				docker kill fdcs_${PAM_USER}
+			fi
+		}
+	else
+               logger -i -p auth.notice -t $SCRIPTNAME "has_ession: $(has_session)"
+
+        fi
+        exit 0
+fi
