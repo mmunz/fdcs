@@ -12,7 +12,8 @@ Because i needed a secure(r) ssh environment and Froxlor doesn't bringt that OOT
 ## Status
 
 "Works for me". If you want to use it or get some ideas then be my guest. But expect some problems due to missing
-documentation or bugs.
+documentation or bugs. Also consider security: This is probably safer than direct ssh access, but might not be suitable
+for all situations, especially when you need a very high security level.
 
 **If you don't feel comfortable with froxlor and linux in general this is probably not for you at this point.**
 
@@ -81,6 +82,11 @@ documentation or bugs.
   ```
   #includedir /etc/sudoers.d
   ```
+- setup pam_exec: Add a line like the following to /etc/pam.d/sshd:
+
+  ```
+  session    required     pam_exec.so seteuid /usr/local/fdcs/pam/fdcs-pam-sshuser
+  ```
 - Setup the OpenSSh server, add this to /etc/ssh/sshd_config:
 
   ```
@@ -105,11 +111,11 @@ I tried to make this as safe as possible, e.g.:
 
 - drop all privileges in the container and run as logged in user
 - readonly root filesystem
-- all setuid binaries removed in the docker-debian-chroot image
+- all setuid binaries were removed in the docker-debian-chroot image
 - only the fdcs-entry script is allowed to be executed as fdcs user with sudo
-- The container runs with limited resources (cpu/ram) and has its own network
+- Each container runs with limited resources (cpu/ram/ulimits) and has its own network
 
-If you find vulnerabilities or have some suggestions, how to make this safer: please let me know.
+If you find vulnerabilities or have some suggestions how to make this safer: please let me know.
 
 ## Known limitations
 
