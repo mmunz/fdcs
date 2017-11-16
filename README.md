@@ -2,7 +2,7 @@
 
 ## About
 
-This are some scripts that can be used to setup dockerized ssh environments for
+Here are some scripts that can be used to setup dockerized ssh environments for
 [Froxlor](https://www.froxlor.org) customers.
 
 ## Why?
@@ -103,10 +103,13 @@ documentation or bugs.
 
 I tried to make this as safe as possible, e.g.:
 
-- drop all privileges in the container
+- drop all privileges in the container and run as logged in user
 - readonly root filesystem
 - all setuid binaries removed in the docker-debian-chroot image
-- only the fdcs-entry script is allowed to be executed as fdcs user 
+- only the fdcs-entry script is allowed to be executed as fdcs user with sudo
+- The container runs with limited resources (cpu/ram) and has its own network
+
+If you find vulnerabilities or have some suggestions, how to make this safer: please let me know.
 
 ## Known limitations
 
