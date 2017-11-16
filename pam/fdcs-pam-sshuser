@@ -1,4 +1,4 @@
-#!bin/bash
+#!/bin/bash
 
 ### check for availability of required tools
 
