@@ -1,4 +1,7 @@
 #!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )"
+
 id -Gn | grep -q fdcs || {
 	echo -e "\nSSH container not ready yet. Please try again in some minutes.\n"
 	exit
@@ -6,8 +9,8 @@ id -Gn | grep -q fdcs || {
 
 USER_SHELL="$(getent passwd $LOGNAME | cut -d: -f7)"
 
-if [ "${USER_SHELL}" = "/usr/local/fdcs/bin/fdcs" ]; then
-	sudo -u fdcs /usr/local/fdcs/bin/fdcs-entry "$@"
+if [ "${USER_SHELL}" = "${DIR}/bin/fdcs" ]; then
+	sudo -u fdcs ${DIR}/bin/fdcs-entry "$@"
 else
 	echo -e "\nAccess denied.\n"
 fi

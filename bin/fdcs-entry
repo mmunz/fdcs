@@ -5,6 +5,11 @@
 
 USER="$(who am i | awk '{print $1}')"
 
+docker inspect fdcs_${USER} &> /dev/null || {
+	echo "Container not ready yet, please try again."
+	exit 2
+}
+
 if [[ -z "$@" ]]; then
         # no arguments, start bash
         docker exec -ti -u ${SUDO_UID}:${SUDO_GID} fdcs_${USER} /bin/bash

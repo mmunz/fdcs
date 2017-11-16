@@ -57,12 +57,15 @@ for all situations, especially when you need a very high security level.
 - **make sure you use froxlor with libnss-extrausers instead of libnss-mysql.**
   We need the extrausers files to mount them inside the container.
   libnss-extrausers is only available in recent versions of Froxlor, you may even have to use master from git.
-- clone this repository to /usr/local/. Due to hardcoded paths it needs to be in this location:
+- clone this repository, e.g. to /usr/local/
 
   ```
   cd /usr/local
   git clone https://github.com/mmunz/fdcs.git
   ```
+  
+  **If you are using another path than /usr/local make sure to adapt all paths (e.g. in sudoers and pam files)**
+- adapt the configuration to your environment, see **config/default.config.sh**
 - add fdcs system user and add it to the docker group:
 
   ```
@@ -122,7 +125,4 @@ If you find vulnerabilities or have some suggestions how to make this safer: ple
 - in the worst case it can take 10 minutes from setting the shell for a user to when he can log in. 5 minutes for the
   froxlor tasks cronjob + 5 minutes for the fdcs cronjob.
 - automatically created user homes are not removed on user deletion.
-- hardcoded paths:
-  - expects froxlor in /var/www/froxlor and customer dirs in /var/customers/
-  - expects the scripts in /usr/local/fscd/
 

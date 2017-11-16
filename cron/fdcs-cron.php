@@ -1,13 +1,53 @@
 <?php
-require_once("/var/www/froxlor/lib/userdata.inc.php");
-require_once("/var/www/froxlor/lib/functions/filedir/function.safe_exec.php");
+
+$dir = getcwd();
+
+function isDeclaration($line) {
+    return strpos($line, '#') !== 0 && strpos($line, "=");
+}
+
+function loadConfig($dir) {
+	$conf = [];
+	$confFiles = [
+		sprintf('%s/config/default.config.sh', $dir),
+		sprintf('%s/config/local.config.sh', $dir),
+		'/etc/fdcs/config'
+	];
+
+	foreach($confFiles as $confFile) {
+		if (file_exists($confFile)) {
+			$handle = fopen($confFile, "r");
+			$lines = [];
+			while (($line = fgets($handle)) !== false) {
+			        $lines[] = $line;
+			}
+			//$contents = fread($handle, filesize($confFile));
+			//$lines = explode("\n", $contents);
+			$keyValuePairs = array_filter($lines, "isDeclaration");
+			// Now you can iterator over $decls exploding on "=" to see param/value
+			foreach($keyValuePairs as $line) {
+				list($key, $value) = explode("=", $line);
+				$value = trim($value);
+				$value = trim($value, "'");
+				$conf[$key] = trim($value, '"');
+			}
+			fclose($handle);
+		}
+	}
+	return $conf;
+}
+
+$config = loadConfig($dir);
+
+require_once(sprintf("%s/lib/userdata.inc.php", $config['FROXLOR_DIR']));
+require_once(sprintf("%s/lib/functions/filedir/function.safe_exec.php", $config['FROXLOR_DIR']));
 
 $changed = false;
 $pdo = new PDO('mysql:host=' . $sql['host'] . ';dbname=' . $sql['db'], $sql['user'], $sql['password']);
 
 // get all users that have set fdcs as login shell
 $fdcs_users = [];
-$sql = "SELECT username FROM ftp_users WHERE shell='/usr/local/fdcs/bin/fdcs' AND login_enabled='Y';";
+$sql = sprintf("SELECT username FROM ftp_users WHERE shell='%s/bin/fdcs' AND login_enabled='Y';", $dir);
 foreach ($pdo->query($sql) as $row) {
   $fdcs_users[] = $row['username'];
 }
