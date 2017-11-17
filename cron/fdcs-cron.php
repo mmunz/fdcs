@@ -1,7 +1,5 @@
 <?php
 
-$dir = getcwd();
-
 function isDeclaration($line) {
     return strpos($line, '#') !== 0 && strpos($line, "=");
 }
@@ -37,6 +35,7 @@ function loadConfig($dir) {
 	return $conf;
 }
 
+$dir = realpath(__DIR__ . '/../' );
 $config = loadConfig($dir);
 
 require_once(sprintf("%s/lib/userdata.inc.php", $config['FROXLOR_DIR']));
