@@ -61,14 +61,14 @@ fi
 
 user_has_session() {
 	# does the user still have open ssh sessions?
-        users=$(who -u -s -q |head -n 1)
-        has_session="0"
-        for user in $users; do
-                if [ "$user" = "$PAM_USER" ]; then
-                        logger -i -p auth.notice -t $SCRIPTNAME "User $PAM_USER has still open sessions, keep docker container."
-                        has_session="1"
-                fi
-        done
+    users=$(who -u -s -q |head -n 1)
+    has_session="0"
+    for user in $users; do
+        if [ "$user" = "$PAM_USER" ]; then
+                logger -i -p auth.notice -t $SCRIPTNAME "User $PAM_USER has still open sessions, keep docker container."
+                has_session="1"
+        fi
+    done
 	echo $has_session
 }
 
@@ -78,9 +78,9 @@ if [ -z "$PAM_TYPE" -o "$PAM_TYPE" = "open_session" ]; then
 	# create home directory for the user if necessary
         test -d $USER_SSH_HOME || {
 		mkdir -p ${FROXLOR_CUSTOMER_DIR}/home
-                cp -r /etc/skel $USER_SSH_HOME
-                chown -R ${EFFECTIVE_UID}:${EFFECTIVE_GID} $USER_SSH_HOME
-                chmod 700 $USER_SSH_HOME
+            cp -r /etc/skel $USER_SSH_HOME
+            chown -R ${EFFECTIVE_UID}:${EFFECTIVE_GID} $USER_SSH_HOME
+            chmod 700 $USER_SSH_HOME
         }
 
 	LIMIT_OPTIONS=""
@@ -124,14 +124,14 @@ if [ -z "$PAM_TYPE" -o "$PAM_TYPE" = "open_session" ]; then
         socat TCP-LISTEN:3306,fork,bind=localhost unix-connect:/var/run/mysqld/mysqld.sock &> /dev/null
 elif [ "$PAM_TYPE" = "close_session" ]; then
         if [ "$(user_has_session)" = "0" ]; then
-                # last user session, destroy docker container
-                logger -i -p auth.notice -t $SCRIPTNAME "Last ssh session for ${PAM_USER} ended, killing docker container in 10s."
-		sleep 10 && {
-		        if [ "$(user_has_session)" = "0" ]; then
-		                logger -i -p auth.notice -t $SCRIPTNAME "Killed docker container fdcs_${PAM_USER}"
-				docker kill fdcs_${PAM_USER}
-			fi
-		}
+            # last user session, destroy docker container
+            logger -i -p auth.notice -t $SCRIPTNAME "Last ssh session for ${PAM_USER} ended, killing docker container in 10s."
+		    sleep 10 && {
+                if [ "$(user_has_session)" = "0" ]; then
+                    logger -i -p auth.notice -t $SCRIPTNAME "Killed docker container fdcs_${PAM_USER}"
+				    docker kill fdcs_${PAM_USER}
+			    fi
+		    }
         fi
         exit 0
 fi
