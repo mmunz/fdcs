@@ -8,9 +8,6 @@ for c in ${DIR}/config/default.config.sh ${DIR}/config/local.config.sh /etc/fdcs
 	. $c
 done
 
-
-
-
 ### check for availability of required tools
 
 required="mkdir id getent basename logger grep docker"
@@ -36,9 +33,12 @@ USER_SHELL="$(getent passwd ${PAM_USER} | cut -d: -f7)"
 # memory cgroup support
 CGROUP_MEMORY=0
 test -d /sys/fs/cgroup/memory/ && CGROUP_MEMORY=1
-# memory cgroup support
+# cpu cgroup support
 CGROUP_CPU=0
 test -e /sys/fs/cgroup/cpu && CGROUP_CPU=1
+CGROUP_CPU_QUOTA=0
+test -e /sys/fs/cgroup/cpu,cpuacct/cpu.cfs_quota_us && CGROUP_CPU_QUOTA=1
+
 
 if [ -z "$EFFECTIVE_UID" ] || [ -z "$EFFECTIVE_GID" ] || [ -z "$USER_REAL" ] || [ -z "$USER_HOME" ]; then
 	logger -i -p auth.error -t $SCRIPTNAME "missing required variables, not starting docker container."
@@ -83,6 +83,8 @@ if [ -z "$PAM_TYPE" -o "$PAM_TYPE" = "open_session" ]; then
                 chmod 700 $USER_SSH_HOME
         }
 
+	LIMIT_OPTIONS=""
+
 	# Options for limiting the user
 	$LIMIT_OPTIONS="${CONTAINER_ULIMIT}"
 	if [ "${CGROUP_MEMORY}" = "1" ]; then
@@ -93,7 +95,14 @@ if [ -z "$PAM_TYPE" -o "$PAM_TYPE" = "open_session" ]; then
 
 
 	if [ "${CGROUP_CPU}" = "1" ]; then
-		LIMIT_OPTIONS="${LIMIT_OPTIONS} --cpus=${CONTAINER_MAX_CPU}"
+		if [ "${CGROUP_CPU_QUOTA}" = "1" ]; then
+			# newer kernel
+			LIMIT_OPTIONS="${LIMIT_OPTIONS} --cpus=${CONTAINER_MAX_CPU}"
+		else
+			# older kernel
+			shares="$(echo "${CONTAINER_MAX_CPU} * 100000" | bc)"
+			LIMIT_OPTIONS="${LIMIT_OPTIONS} --cpu-period=100000 --cpu-shares=${shares}"
+		fi
 	else
 		logger -i -p auth.warning -t $SCRIPTNAME "No cpu cgroup support, not limiting the containers cpu usage!"
 	fi
@@ -106,12 +115,13 @@ if [ -z "$PAM_TYPE" -o "$PAM_TYPE" = "open_session" ]; then
         -v /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
         -v ${USER_HOME}:${USER_HOME} \
         -v ${USER_SSH_HOME}/:/home/${PAM_USER} \
-	--tmpfs /tmp \
-	-e HOME=/home/${PAM_USER} \
-	-h $(hostname) \
-	-e TERM=xterm-color \
-        --rm --cap-drop=all --security-opt=no-new-privileges --read-only ${LIMIT_OPTIONS} -d -u ${EFFECTIVE_UID}:${EFFECTIVE_GID} --name fdcs_${PAM_USER} ${DOCKER_IMAGE} socat TCP-LISTEN:3306,fork,bind=localhost unix-connect:/var/run/mysqld/mysqld.sock &> /dev/null
-
+        --tmpfs /tmp \
+        -e HOME=/home/${PAM_USER} \
+        -h $(hostname) \
+        -e TERM=xterm-color \
+        --rm --cap-drop=all --security-opt=no-new-privileges --read-only ${LIMIT_OPTIONS} -d \
+        -u ${EFFECTIVE_UID}:${EFFECTIVE_GID} --name fdcs_${PAM_USER} ${DOCKER_IMAGE} \
+        socat TCP-LISTEN:3306,fork,bind=localhost unix-connect:/var/run/mysqld/mysqld.sock &> /dev/null
 elif [ "$PAM_TYPE" = "close_session" ]; then
         if [ "$(user_has_session)" = "0" ]; then
                 # last user session, destroy docker container
