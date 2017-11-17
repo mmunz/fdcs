@@ -122,7 +122,7 @@ If you find vulnerabilities or have some suggestions how to make this safer: ple
 
 ## Ansible
 
-I created a ansible role to setup fdcs which is available here: https://github.com/mmunz/fdcs
+I created a ansible role to setup fdcs which is available here: https://github.com/mmunz/ansible-role-fdcs
 
 ## Known limitations
 
