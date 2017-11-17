@@ -120,6 +120,10 @@ I tried to make this as safe as possible, e.g.:
 
 If you find vulnerabilities or have some suggestions how to make this safer: please let me know.
 
+## Ansible
+
+I created a ansible role to setup fdcs which is available here: https://github.com/mmunz/fdcs
+
 ## Known limitations
 
 - in the worst case it can take 10 minutes from setting the shell for a user to when he can log in. 5 minutes for the
