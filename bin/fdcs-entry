@@ -3,7 +3,7 @@
 # We cant just use $SUDO_USER here because that doesn't return the correct username
 # if multiple names share the same uid.
 
-USER="$(who am i | awk '{print $1}')"
+USER="$(logname)"
 
 docker inspect fdcs_${USER} &> /dev/null || {
 	echo "Container not ready yet, please try again."
