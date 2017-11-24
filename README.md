@@ -47,12 +47,14 @@ for all situations, especially when you need a very high security level.
 
 - make sure docker ist installed and works.
 - You need a recent kernel for cpu limit support. 3.16 from jessie is to old. I use 4.9.0 from jessie-backports.
-- enable memory cgroups. On debian jessie add the following to /etc/default/grub:
+- enable memory cgroups. On debian jessie (8) add the following to /etc/default/grub. Debian 9 has cgroups enabled
+  already, so if using Debian 9, skip this step.
 
   ```
   GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
   ```
-  This needs a reboot now.
+  
+  After that update grub with *update-grub* and reboot.
 - you can check with docker version if cpu and memory cgroups are available. If they aren't you will see a warning. 
 - **make sure you use froxlor with libnss-extrausers instead of libnss-mysql.**
   We need the extrausers files to mount them inside the container.
@@ -107,6 +109,13 @@ for all situations, especially when you need a very high security level.
   #
   */5 * * * * root /usr/bin/php /usr/local/fdcs/cron/fdcs-cron.php 1> /dev/null
   ```
+  Don't forget to restart cron with */etc/init.d/cron restart* now.
+- Configure Froxlor (in the Froxlor panel):
+  - in *settings->security options* enable **Allow customers to enable shell access for ftp-users** and
+    add "/usr/local/fdcs/bin/fdcs" to **List of available shells**
+  - Switch to a user in the panel. For each FTP account you are now able to select fdcs as shell and use the users
+    credentials to login using SSH (after some minutes). Add public keys to ~/.ssh/authorized_keys when logged in
+    as user via SSH to enable public key authentication.
 
 ## Security
 
