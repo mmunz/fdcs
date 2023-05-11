@@ -39,7 +39,7 @@ $dir = realpath(__DIR__ . '/../' );
 $config = loadConfig($dir);
 
 require_once(sprintf("%s/lib/userdata.inc.php", $config['FROXLOR_DIR']));
-require_once(sprintf("%s/lib/functions/filedir/function.safe_exec.php", $config['FROXLOR_DIR']));
+require_once(sprintf("%s/lib/Froxlor/FileDir.php", $config['FROXLOR_DIR']));
 
 $changed = false;
 $pdo = new PDO('mysql:host=' . $sql['host'] . ';dbname=' . $sql['db'], $sql['user'], $sql['password']);
@@ -50,7 +50,7 @@ $sql = sprintf("SELECT username FROM ftp_users WHERE shell='%s/bin/fdcs' AND log
 foreach ($pdo->query($sql) as $row) {
   $fdcs_users[] = $row['username'];
 }
-$fdcs_users_string = implode($fdcs_users,',');
+$fdcs_users_string = implode(',', $fdcs_users);
 
 // fetch the fdcs group from ftp_groups
 $sth = $pdo->prepare("SELECT * FROM ftp_groups WHERE groupname='fdcs'");
@@ -85,8 +85,6 @@ if (is_array($sql_fdcs_group)) {
 if ($changed) {
 	// fdcs group membership changed, invalidating nscd caches
 	$false_val = false;
-	safe_exec('nscd -i group 1> /dev/null', $false_val, array('>'));
-	safe_exec('nscd -i passwd 1> /dev/null', $false_val, array('>'));
+	Froxlor\FileDir::safe_exec('nscd -i group 1> /dev/null', $false_val, array('>'));
+    Froxlor\FileDir::safe_exec('nscd -i passwd 1> /dev/null', $false_val, array('>'));
 }
-
-?>
