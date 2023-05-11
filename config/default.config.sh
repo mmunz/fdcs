@@ -3,7 +3,7 @@
 # Creating /etc/fdcs/config will also work and has the highest priority.
 
 # Web root of Froxlor
-FROXLOR_DIR="/var/www/froxlor"
+FROXLOR_DIR="/var/www/html/froxlor"
 
 # Directory with the Froxlor web/temp/mail directories
 FROXLOR_CUSTOMER_DIR="/var/customers"

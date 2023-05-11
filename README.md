@@ -111,8 +111,10 @@ for all situations, especially when you need a very high security level.
   ```
   Don't forget to restart cron with */etc/init.d/cron restart* now.
 - Configure Froxlor (in the Froxlor panel):
-  - in *settings->security options* enable **Allow customers to enable shell access for ftp-users** and
-    add "/usr/local/fdcs/bin/fdcs" to **List of available shells**
+  - in *settings->security options* 
+    - enable **Allow customers to enable shell access for ftp-users**,
+    - add "`/usr/local/fdcs/bin/fdcs`" to **List of available shells** and
+    - add "`fdcs`" to **Custom system group for all customer users** 
   - Switch to a user in the panel. For each FTP account you are now able to select fdcs as shell and use the users
     credentials to login using SSH (after some minutes). Add public keys to ~/.ssh/authorized_keys when logged in
     as user via SSH to enable public key authentication.
